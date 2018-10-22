@@ -1,0 +1,10 @@
+# idea files
+.idea/
+
+# local env files
+esp/data/local_conf.py
+.env
+
+# images
+esp/images
+raw_images

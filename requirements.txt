@@ -1,0 +1,7 @@
+adafruit-ampy==1.0.3
+click==6.7
+ecdsa==0.13
+esptool==2.2.1
+Pillow==5.3.0
+pyaes==1.6.1
+pyserial==3.4
