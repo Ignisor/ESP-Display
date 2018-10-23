@@ -138,7 +138,7 @@ class Display(ssd1306.SSD1306_I2C):
         :param autowrap: auto wrap text with new lines
         :param alignment: auto wrap text with new lines
         :param by_line: show text line by line
-        :param delay: how long to wait before scrolling to next line in seconds
+        :param delay: how long to wait before scrolling to next page in seconds
         """
         GET_POS = {
             'left': lambda size: 0,

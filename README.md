@@ -34,3 +34,4 @@ Display is a subclass of [`SSD1306_I2C`](https://github.com/micropython/micropyt
 - `clear` - Fills display black and refreshes
 - `draw_from_file` - Allows you to draw binary image from file (use `img_to_bin.py` to convert image to supported format). 
 - `draw_from_sequence` - Allows you to draw image from sequence. I suggest to use generators for better memory optimization.
+- `draw_text` - Helper that allows you to easily drow multiline text with auto wrapping
