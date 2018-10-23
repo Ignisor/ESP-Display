@@ -1,8 +1,12 @@
+import time
+
 import ssd1306
 from machine import I2C, Pin
 
 
 class Display(ssd1306.SSD1306_I2C):
+    SYMBOL_SZIE = (8, 8)
+
     SET_HWSCROLL_OFF = const(0x2e)
     SET_HWSCROLL_ON = const(0x2f)
     SET_HWSCROLL_RIGHT = const(0x26)
@@ -103,6 +107,64 @@ class Display(ssd1306.SSD1306_I2C):
 
         self.show()
 
-    def draw_text(self, text):
-        pass
+    def __get_text_size(self, text):
+        return len(text) * self.SYMBOL_SZIE[0]
 
+    def __prepare_text(self, text, autowrap=True):
+        lines = text.split('\n')
+        for line in lines:
+            width = self.__get_text_size(line)
+
+            if width > self.width and autowrap:
+                words = line.split(' ')
+                line = ''
+
+                for word in words:
+                    if line != '':
+                        word = ' ' + word
+
+                    if self.__get_text_size(line) + self.__get_text_size(word) <= self.width:
+                        line += word
+                    else:
+                        yield line
+                        line = word.strip()
+
+            yield line
+
+    def draw_text(self, text, autowrap=True, alignment='center', by_line=True, delay=3):
+        """
+        Draws text on screen. Supports simple paging if text does not fit
+        :param text: text to draw
+        :param autowrap: auto wrap text with new lines
+        :param alignment: auto wrap text with new lines
+        :param by_line: show text line by line
+        :param delay: how long to wait before scrolling to next line in seconds
+        """
+        GET_POS = {
+            'left': lambda size: 0,
+            'center': lambda size: int((self.width / 2) - (size / 2)),
+            'right': lambda size: self.width - size,
+        }
+
+        self.fill(0)
+
+        lines = self.__prepare_text(text, autowrap)
+
+        n = 0
+        for line in lines:
+            x = GET_POS[alignment](self.__get_text_size(line))
+            y = n * self.SYMBOL_SZIE[1]
+
+            self.text(line, x, y)
+
+            if by_line:
+                self.show()
+
+            n += 1
+            if n * self.SYMBOL_SZIE[1] >= self.height:  # paging if lines does not fit
+                n = 0
+                self.show()
+                time.sleep(delay)
+                self.fill(0)
+
+        self.show()
