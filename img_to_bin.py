@@ -7,8 +7,8 @@ OUTPUT_DIR = 'esp/images'
 IMG_SIZE = (128, 64)
 
 
-def png_to_bin(img):
-    if img.size != IMG_SIZE:
+def img_to_bin(img):
+    if img.width > IMG_SIZE[0] or img.height > IMG_SIZE[1]:
         img = img.resize(IMG_SIZE)
 
     img = img.convert('L')
@@ -28,5 +28,5 @@ if __name__ == '__main__':
         img = Image.open(img_path)
 
         with open(os.path.join(OUTPUT_DIR, os.path.splitext(img_name)[0] + '.bin'), 'wb') as out_file:
-            for b in png_to_bin(img):
+            for b in img_to_bin(img):
                 out_file.write(bytes([b]))

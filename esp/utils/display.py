@@ -2,15 +2,15 @@ import ssd1306
 from machine import I2C, Pin
 
 
-class Display(object):
+class Display(ssd1306.SSD1306_I2C):
     SET_HWSCROLL_OFF = const(0x2e)
     SET_HWSCROLL_ON = const(0x2f)
     SET_HWSCROLL_RIGHT = const(0x26)
     SET_HWSCROLL_LEFT = const(0x27)
 
-    def __init__(self, i2c, resolution=(128, 64)):
-        self.display = ssd1306.SSD1306_I2C(resolution[0], resolution[1], i2c)
-        self.display.fill(0)
+    def __init__(self, i2c, resolution=(128, 64), addr=0x3c, external_vcc=False):
+        super(Display, self).__init__(resolution[0], resolution[1], i2c, addr, external_vcc)
+        self.fill(0)
 
     def hardware_scroll(self, side, speed=9):
         """
@@ -24,39 +24,84 @@ class Display(object):
             'right': self.SET_HWSCROLL_RIGHT,
         }
 
-        self.display.write_cmd(self.SET_HWSCROLL_OFF)
-        self.display.write_cmd(directions[side])
-        self.display.write_cmd(0x00)  # dummy byte
-        self.display.write_cmd(0x07)  # start page = page 7
-        self.display.write_cmd(speed)  # frequency
-        self.display.write_cmd(0x00)  # end page = page 0
+        self.write_cmd(self.SET_HWSCROLL_OFF)
+        self.write_cmd(directions[side])
+        self.write_cmd(0x00)  # dummy byte
+        self.write_cmd(0x07)  # start page = page 7
+        self.write_cmd(speed)  # frequency
+        self.write_cmd(0x00)  # end page = page 0
 
-        self.display.write_cmd(0x00)
-        self.display.write_cmd(0xff)
-        self.display.write_cmd(self.SET_HWSCROLL_ON)  # activate scroll
+        self.write_cmd(0x00)
+        self.write_cmd(0xff)
+        self.write_cmd(self.SET_HWSCROLL_ON)  # activate scroll
 
     def hardware_scroll_stop(self, refresh=True):
-        self.display.write_cmd(self.SET_HWSCROLL_OFF)
+        self.write_cmd(self.SET_HWSCROLL_OFF)
         if refresh:
-            self.display.show()
+            self.show()
 
     def clear(self):
-        self.display.fill(0)
-        self.display.show()
+        self.fill(0)
+        self.show()
 
-    def draw_from_file(self, path, by_line=False):
-        self.clear()
+    def draw_from_file(self, path, offset=(0, 0), size=(None, None), by_line=False, by_half=True):
+        """
+        Draws binary image from file. Renders lines interlaced
+        :param path: path to file
+        :param offset: offset for x, y. E.g. if you want to put image in upper-right corner or somewhere
+        :param size: image size, corresponds to screen size if not specified
+        :param by_half: show halfs of the interlaced image when ready. "Speeds up" rendering
+        :param by_line: show each line when ready (slower but can be fancier)
+        """
+        width, height = size
+        if width is None:
+            width = self.width
+        if height is None:
+            height = self.height
 
         with open(path, 'rb') as f:
-            for y in range(self.display.height):
-                row = f.read(self.display.width)
-                for x, val in enumerate(iter(row)):
-                    self.display.pixel(x, y, val)
+            for start_line in range(2):
+                for y in range(start_line, height, 2):
+                    f.seek(y * width)
+                    row = f.read(width)
 
-                if by_line:
-                    self.display.show()
+                    for x, val in enumerate(iter(row)):
+                        self.pixel(x + offset[0], y + offset[1], val)
 
-        self.display.show()
+                    if by_line:
+                        self.show()
+
+                if by_half:
+                    self.show()
+
+        self.show()
+
+    def draw_from_sequence(self, sequence, offset=(0, 0), size=(None, None), by_line=False):
+        """
+        Draws image from sequence of bytes
+        :param sequence: sequence of bytes
+        :param offset: offset for x, y. E.g. if you want to put image in upper-right corner or somewhere
+        :param size: image size, corresponds to screen size if not specified
+        :param by_line: show each line when ready (slower but can be fancier)
+        """
+        width, height = size
+        if width is None:
+            width = self.width
+        if height is None:
+            height = self.height
+
+        iterable = iter(sequence)
+        for y in range(height):
+            for x, val in enumerate(iterable):
+                self.pixel(x + offset[0], y + offset[1], val)
+
+                if x >= width - 1:
+                    break
+
+            if by_line:
+                self.show()
+
+        self.show()
 
     def draw_text(self, text):
         pass
