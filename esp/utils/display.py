@@ -107,13 +107,21 @@ class Display(ssd1306.SSD1306_I2C):
 
         self.show()
 
-    def __get_text_size(self, text):
+    def get_text_size(self, text):
         return len(text) * self.SYMBOL_SZIE[0]
+
+    @property
+    def symbols_height(self):
+        return self.height // self.SYMBOL_SZIE[1]
+
+    @property
+    def symbols_width(self):
+        return self.width // self.SYMBOL_SZIE[0]
 
     def __prepare_text(self, text, autowrap=True):
         lines = text.split('\n')
         for line in lines:
-            width = self.__get_text_size(line)
+            width = self.get_text_size(line)
 
             if width > self.width and autowrap:
                 words = line.split(' ')
@@ -123,7 +131,7 @@ class Display(ssd1306.SSD1306_I2C):
                     if line != '':
                         word = ' ' + word
 
-                    if self.__get_text_size(line) + self.__get_text_size(word) <= self.width:
+                    if self.get_text_size(line) + self.get_text_size(word) <= self.width:
                         line += word
                     else:
                         yield line
@@ -138,7 +146,7 @@ class Display(ssd1306.SSD1306_I2C):
         :param autowrap: auto wrap text with new lines
         :param alignment: auto wrap text with new lines
         :param by_line: show text line by line
-        :param delay: how long to wait before scrolling to next page in seconds
+        :param delay: how long to wait before scrolling to next page in seconds, if delay = 0 paging will be disabled
         """
         GET_POS = {
             'left': lambda size: 0,
@@ -152,7 +160,7 @@ class Display(ssd1306.SSD1306_I2C):
 
         n = 0
         for line in lines:
-            x = GET_POS[alignment](self.__get_text_size(line))
+            x = GET_POS[alignment](self.get_text_size(line))
             y = n * self.SYMBOL_SZIE[1]
 
             self.text(line, x, y)
@@ -161,10 +169,38 @@ class Display(ssd1306.SSD1306_I2C):
                 self.show()
 
             n += 1
-            if n * self.SYMBOL_SZIE[1] >= self.height:  # paging if lines does not fit
-                n = 0
-                self.show()
-                time.sleep(delay)
-                self.fill(0)
+            if delay > 0:
+                if n * self.SYMBOL_SZIE[1] >= self.height:  # paging if lines does not fit
+                    n = 0
+                    self.show()
+                    time.sleep(delay)
+                    self.fill(0)
 
         self.show()
+
+
+class DataDisplay(object):
+    def __init__(self, display, fields=tuple()):
+        self.disp = display
+        self.data = dict((field, None) for field in fields)
+
+    def set_data(self, field, value):
+        self.data[field] = value
+
+    def __text_data(self):
+        for key, value in self.data.items():
+            value = str(value) if value is not None else '-'
+
+            data_width = len(str(key)) + len(value) + len(': ')
+            if data_width > self.disp.symbols_width:
+                delta = data_width - self.disp.symbols_width
+                key = key[:-delta]
+
+            key = key[0].upper() + key[1:]  # micropython does not have capitalize()
+            name = '{}: '.format(key)
+
+            yield name + value
+
+    def refresh(self):
+        self.disp.draw_text('\n'.join(self.__text_data()), alignment='left', by_line=False, delay=0)
+
